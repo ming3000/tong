@@ -96,7 +96,7 @@ func main() {
       name := c.PostString("name", "default name") 
       age := c.PostInt("age", 3) 
       return c.String(http.StatusOK,  
-                       fmt.Sprintf("hello,name:%s,age:%d", name, age)) 
+                      fmt.Sprintf("hello,name:%s,age:%d", name, age)) 
    }) 
    log.Fatalln(t.Start(":3000")) 
 } 
@@ -154,10 +154,11 @@ jwt
 
 tong 的上下文 context 中，提供了 2 种缓存对象。它们都是并发安全的。 
 
-|缓存对象名 |作用域 |实现策略 |
-|:----|:----|:----|:----|
-|RequestCache |该缓存的作用域为当前的 HTTP Request 的生命周期。 <br>在处理请求时，用作临时存储的对象，每次请求都会重设这个变量。 |LRU 链表 |
-|GlobalCache |该缓存的作用域为整个 tong 应用程序的生命周期。 <br>该缓存的内容会被持久化到磁盘。下一次应用重启时，可以重复使用。 |LSM 文件 |
+缓存对象: 
+
+RequestCache - 该缓存的作用域为当前的 HTTP Request 的生命周期。 在处理请求时，用作临时存储的对象，每次请求都会重设这个变量。实现策略为 LRU 链表。 
+
+GlobalCache - 该缓存的作用域为整个 tong 应用程序的生命周期。该缓存的内容会被持久化到磁盘。下一次应用重启时，可以重复使用。实现策略为 LSM 文件。 
 
 这两种缓存对象，都提供了下面的三种方法，供处理器程序使用： 
 

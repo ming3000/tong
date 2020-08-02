@@ -51,14 +51,14 @@ func applyMiddleware(h HandlerFunc, middleware ...MiddlewareFunc) HandlerFunc {
 
 // $--- tong struct define ---
 type Tong struct {
+	Server             *http.Server
+	Listener           net.Listener
 	router             *Router
 	sysMiddleware      []MiddlewareFunc
 	customerMiddleware []MiddlewareFunc
 	pool               sync.Pool
-	Server             *http.Server
-	Listener           net.Listener
-	Logger             common.Logger
 	Debug              bool
+	Logger             *common.Logger
 	NotFoundHandler    HandlerFunc
 	HTTPErrorHandler   ErrorHandlerFunc
 }
@@ -68,9 +68,14 @@ func New() *Tong {
 	tong := &Tong{Server: new(http.Server)}
 	tong.Server.Handler = tong
 	tong.router = NewRouter()
+	tong.sysMiddleware = make([]MiddlewareFunc, 0)
+	tong.customerMiddleware = make([]MiddlewareFunc, 0)
 	tong.pool.New = func() interface{} {
 		return tong.NewContext(nil, nil)
 	}
+	tong.Debug = true
+	tong.Logger = common.NewDefaultLogger()
+	tong.NotFoundHandler = NotFoundHandler
 	tong.HTTPErrorHandler = DefaultHTTPErrorHandler
 	return tong
 }
@@ -80,7 +85,7 @@ func New() *Tong {
 func (t *Tong) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// acquire context instance
 	c := t.pool.Get().(*Context)
-	c.Reset(r, w, common.NewDefaultRAMCache())
+	c.Reset(r, w, c.logger, common.NewDefaultRAMCache())
 
 	h := NotFoundHandler
 	if t.sysMiddleware == nil {
@@ -139,6 +144,7 @@ func (t *Tong) NewContext(r *http.Request, w http.ResponseWriter) *Context {
 		request:      r,
 		response:     NewResponse(w),
 		handler:      NotFoundHandler,
+		logger:       t.Logger,
 		requestCache: common.NewDefaultRAMCache(),
 	}
 }

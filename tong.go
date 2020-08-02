@@ -57,6 +57,7 @@ type Tong struct {
 	pool               sync.Pool
 	Server             *http.Server
 	Listener           net.Listener
+	Logger             common.Logger
 	Debug              bool
 	NotFoundHandler    HandlerFunc
 	HTTPErrorHandler   ErrorHandlerFunc

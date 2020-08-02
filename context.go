@@ -15,6 +15,7 @@ type Context struct {
 	path         string
 	handler      HandlerFunc
 	requestCache common.RAMCache
+	logger       common.Logger
 }
 
 // $--- utils ---
@@ -54,6 +55,10 @@ func (c *Context) Handler() HandlerFunc {
 
 func (c *Context) RequestCache() common.RAMCache {
 	return c.requestCache
+}
+
+func (c *Context) Logger() common.Logger {
+	return c.logger
 }
 
 // $--- Writer ---

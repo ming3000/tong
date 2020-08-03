@@ -10,9 +10,10 @@ import (
 )
 
 type Logger struct {
-	stdLogger *log.Logger
-	debug     bool
-	callers   []string
+	stdLogger        *log.Logger
+	debug            bool
+	callers          []string
+	errorCallerDepth uint8
 }
 
 func NewDefaultLogger() *Logger {
@@ -26,12 +27,11 @@ func NewLogger(fileName string, fileMaxSize int, fileMaxExpire int, prefix strin
 		MaxAge:     fileMaxExpire,
 		MaxBackups: 1,
 	}
-	stdLogger := log.New(io.MultiWriter(os.Stdout, lj),
-		prefix,
-		log.Ldate|log.Ltime|log.Lshortfile)
+	stdLogger := log.New(io.MultiWriter(os.Stdout, lj), prefix, log.Ldate|log.Ltime|log.Lshortfile)
 	return &Logger{
-		stdLogger: stdLogger,
-		debug:     debug,
+		stdLogger:        stdLogger,
+		debug:            debug,
+		errorCallerDepth: 3,
 	}
 }
 
@@ -40,7 +40,7 @@ func (l *Logger) copy() *Logger {
 	return &cp
 }
 
-func (l *Logger) WithCaller(skipLevel int) *Logger {
+func (l *Logger) withCaller(skipLevel int) *Logger {
 	cp := l.copy()
 	pc, file, line, ok := runtime.Caller(skipLevel)
 	if ok {
@@ -51,15 +51,15 @@ func (l *Logger) WithCaller(skipLevel int) *Logger {
 	return cp
 }
 
-func (l *Logger) WithCallersFrames() *Logger {
-	minDepth, maxDepth := 1, 7
+func (l *Logger) withCallersFrames() *Logger {
+	minDepth, maxDepth := 1, l.errorCallerDepth
 	callers := make([]string, 0, maxDepth)
 	pcs := make([]uintptr, maxDepth)
 
 	depth := runtime.Callers(minDepth, pcs)
 	frames := runtime.CallersFrames(pcs[:depth])
 	for frame, more := frames.Next(); more; frame, more = frames.Next() {
-		callerInfo := fmt.Sprintf("%s::%d::%s", frame.File, frame.Line, frame.Function)
+		callerInfo := fmt.Sprintf("%s:%d:%s", frame.File, frame.Line, frame.Function)
 		callers = append(callers, callerInfo)
 		if !more {
 			break
@@ -69,6 +69,10 @@ func (l *Logger) WithCallersFrames() *Logger {
 	cp := l.copy()
 	cp.callers = callers
 	return cp
+}
+
+func (l *Logger) SetCallerDepth(depth uint8) {
+	l.errorCallerDepth = depth
 }
 
 func (l *Logger) DebugFormat(format string, message ...interface{}) {
@@ -85,14 +89,18 @@ func (l *Logger) Debug(message ...interface{}) {
 
 func (l *Logger) ErrorFormat(format string, message ...interface{}) {
 	l.stdLogger.Println("Error:")
-	ll := l.WithCaller(1)
-	ll.stdLogger.Println(ll.callers)
+	ll := l.withCallersFrames()
+	for _, c := range ll.callers {
+		ll.stdLogger.Println(c)
+	} // for>
 	ll.stdLogger.Println(fmt.Sprintf(format, message...))
 }
 
 func (l *Logger) Error(format string, message ...interface{}) {
 	l.stdLogger.Println("Error:")
-	ll := l.WithCaller(1)
-	ll.stdLogger.Println(ll.callers)
-	ll.WithCallersFrames().stdLogger.Println(message...)
+	ll := l.withCallersFrames()
+	for _, c := range ll.callers {
+		ll.stdLogger.Println(c)
+	} // for>
+	ll.stdLogger.Println(message...)
 }

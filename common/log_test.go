@@ -5,30 +5,20 @@ import (
 	"time"
 )
 
-func TestNewDefaultLogger(t *testing.T) {
-	l := NewDefaultLogger()
-	l.Debug("haha", "xixi", "lala")
-	l.DebugFormat("year:%d-moth:%d-day:%d", time.Now().Year(), time.Now().Month(), time.Now().Day())
+func firstlevel(l *Logger) {
+	secondLevel(l)
 }
 
-func firstlevel() {
-	secondLevel()
+func secondLevel(l *Logger) {
+	thirdLevel(l)
 }
 
-func secondLevel() {
-	thirdLevel()
-}
-
-func thirdLevel() {
-	l := NewDefaultLogger()
-
-	ll := l.WithCaller(2)
-	l.Debug(ll.callers)
-
-	lll := l.WithCallersFrames()
-	l.Debug(lll.callers)
+func thirdLevel(l *Logger) {
+	l.Error("haha", "xixi", "lala")
+	l.ErrorFormat("year:%d-moth:%d-day:%d", time.Now().Year(), time.Now().Month(), time.Now().Day())
 }
 
 func TestLogger_Debug(t *testing.T) {
-	firstlevel()
+	l := NewDefaultLogger()
+	firstlevel(l)
 }

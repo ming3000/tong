@@ -84,9 +84,15 @@ func (l *Logger) Debug(message ...interface{}) {
 }
 
 func (l *Logger) ErrorFormat(format string, message ...interface{}) {
-	l.WithCallersFrames().stdLogger.Println(fmt.Sprintf(format, message...))
+	l.stdLogger.Println("Error:")
+	ll := l.WithCaller(1)
+	ll.stdLogger.Println(ll.callers)
+	ll.stdLogger.Println(fmt.Sprintf(format, message...))
 }
 
 func (l *Logger) Error(format string, message ...interface{}) {
-	l.WithCallersFrames().stdLogger.Println(message...)
+	l.stdLogger.Println("Error:")
+	ll := l.WithCaller(1)
+	ll.stdLogger.Println(ll.callers)
+	ll.WithCallersFrames().stdLogger.Println(message...)
 }

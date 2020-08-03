@@ -15,11 +15,11 @@ type Context struct {
 	path         string
 	handler      HandlerFunc
 	logger       *common.Logger
-	requestCache common.RAMCache
+	requestCache common.Cache
 }
 
 // $--- utils ---
-func (c *Context) Reset(r *http.Request, w http.ResponseWriter, logger *common.Logger, cache common.RAMCache) {
+func (c *Context) Reset(r *http.Request, w http.ResponseWriter, logger *common.Logger, cache common.Cache) {
 	c.request = r
 	c.response.Reset(w)
 	c.path = ""
@@ -54,7 +54,7 @@ func (c *Context) Handler() HandlerFunc {
 	return c.handler
 }
 
-func (c *Context) RequestCache() common.RAMCache {
+func (c *Context) RequestCache() common.Cache {
 	return c.requestCache
 }
 

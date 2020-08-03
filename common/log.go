@@ -16,8 +16,8 @@ type Logger struct {
 	errorCallerDepth uint8
 }
 
-func NewDefaultLogger() *Logger {
-	return NewLogger("tong.log", 4, 1, "tong says:", true)
+func NewDefaultLogger(debug bool) *Logger {
+	return NewLogger("tong.log", 4, 1, "tong says:", debug)
 }
 
 func NewLogger(fileName string, fileMaxSize int, fileMaxExpire int, prefix string, debug bool) *Logger {

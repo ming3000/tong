@@ -113,7 +113,6 @@ String(code int, value string) error
 ```plain
 Json(code int, value interface{}, indent string) error 
 ```
-[todo] 
 # A- Binding & Validate 
 
 [todo] 
@@ -148,6 +147,28 @@ jwt
 
 # A- 定时任务 
 
+tong 框架原生支持定时任务，每一个定时任务都会在独立的 goroutine 中执行。每一个定时任务，都是实现了如下接口的对象实例： 
+
+```go
+// Job is an interface for job to do. 
+type Job interface { 
+   // true to decline the step period, false to stay 
+   Run() bool 
+} 
+```
+tong 的定时任务采用了一种 “自适应” 的执行方式。即如果定时任务的 Run 方法返回了 true 值，则下一次定时任务的执行时间间隔为 基础时间间隔 + 步长时间间隔，直到达到了最大定时时间间隔。相反，如果定时任务的 Run 方法返回了 false值，则下一次定时任务依旧按照预设的定时时间间隔周期执行。 
+
+```plain
+type helloJob struct {} 
+func (h helloJob) Run() bool { 
+   log.Println("hello, ", time.Now().Format(time.RFC3339)) 
+   return false 
+} 
+t := tong.New() 
+t.AddCronJob(time.Second*3, time.Second*10, time.Minute, helloJob{}) 
+```
+# A- Goroutine Pool 
+
 [todo] 
 
 # A- 日志 
@@ -162,7 +183,7 @@ tong 的日志工具类有以下几个特点：
 * tong 并没有提供类似 info，debug，error 等复杂的日志分类级别，只提供了一个全局的 debug 开关配置项。如果 debug 配置项设置为 false，则 debug 类的信息均不会输出。 
 * 在打印错误信息时，同时会输出函数调用栈信息。 
 
-日志工具类 提供了 5 个日志打印相关的接口： 
+日志工具类 common.Logger 提供了 5 个日志打印相关的接口： 
 
 ```plain
 // 打印格式化调试信息 
@@ -176,7 +197,7 @@ ErrorFormat(format string, message ...interface{})
 // 打印错误信息并输出换行符 
 Error(format string, message ...interface{}) 
 ```
-tong 提供了 的构造函数，以便按需求对日志进行定制化配置： 
+tong 提供了 common.Logger 的构造函数，以便按需求对日志进行定制化配置： 
 
 ```plain
 func NewLogger(fileName string,  // 日志文件名 

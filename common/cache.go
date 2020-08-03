@@ -3,18 +3,10 @@ package common
 import "sync"
 
 // --- ram cache interface ---
-type RAMCache interface {
+type Cache interface {
 	Set(key string, value interface{})
 	Get(key string) interface{}
 	Del(key string)
-}
-
-const (
-	DefaultRAMCacheCapacity = 256
-)
-
-func NewDefaultRAMCache() RAMCache {
-	return NewLRUCache(DefaultRAMCacheCapacity)
 }
 
 // --- LRU Cache ---
@@ -99,4 +91,9 @@ func NewLRUCache(cap uint32) *LRUCache {
 		tail: tail,
 		lock: sync.Mutex{},
 	}
+}
+
+func NewDefaultLRUCache() Cache {
+	const defaultRAMCacheCapacity = 256
+	return NewLRUCache(defaultRAMCacheCapacity)
 }

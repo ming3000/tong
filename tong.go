@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"time"
 )
 
 // $--- handler type define ---
@@ -42,7 +43,7 @@ func handlerName(h HandlerFunc) string {
 	return t.String()
 }
 
-func applyMiddleware(h HandlerFunc, middleware ...MiddlewareFunc) HandlerFunc {
+func prependMiddleware(h HandlerFunc, middleware ...MiddlewareFunc) HandlerFunc {
 	for i := len(middleware) - 1; i >= 0; i-- {
 		h = middleware[i](h)
 	}
@@ -56,6 +57,7 @@ type Tong struct {
 	router             *Router
 	sysMiddleware      []MiddlewareFunc
 	customerMiddleware []MiddlewareFunc
+	cronList           []*common.Cron
 	pool               sync.Pool
 	Debug              bool
 	Logger             *common.Logger
@@ -70,11 +72,12 @@ func New() *Tong {
 	tong.router = NewRouter()
 	tong.sysMiddleware = make([]MiddlewareFunc, 0)
 	tong.customerMiddleware = make([]MiddlewareFunc, 0)
+	tong.cronList = make([]*common.Cron, 0)
 	tong.pool.New = func() interface{} {
 		return tong.NewContext(nil, nil)
 	}
 	tong.Debug = true
-	tong.Logger = common.NewDefaultLogger()
+	tong.Logger = common.NewDefaultLogger(tong.Debug)
 	tong.NotFoundHandler = NotFoundHandler
 	tong.HTTPErrorHandler = DefaultHTTPErrorHandler
 	return tong
@@ -85,21 +88,21 @@ func New() *Tong {
 func (t *Tong) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// acquire context instance
 	c := t.pool.Get().(*Context)
-	c.Reset(r, w, c.logger, common.NewDefaultRAMCache())
+	c.Reset(r, w, c.logger, common.NewDefaultLRUCache())
 
 	h := NotFoundHandler
 	if t.sysMiddleware == nil {
 		t.router.Find(r.Method, parsePath(r), c)
 		h = c.Handler()
-		h = applyMiddleware(h, t.customerMiddleware...)
+		h = prependMiddleware(h, t.customerMiddleware...)
 	} else {
 		h = func(c *Context) error {
 			t.router.Find(r.Method, parsePath(r), c)
 			h := c.Handler()
-			h = applyMiddleware(h, t.customerMiddleware...)
+			h = prependMiddleware(h, t.customerMiddleware...)
 			return h(c)
 		}
-		h = applyMiddleware(h, t.sysMiddleware...)
+		h = prependMiddleware(h, t.sysMiddleware...)
 	}
 
 	// handle error
@@ -119,12 +122,16 @@ func (t *Tong) Start(address string) error {
 
 // Close immediately stops the server.
 func (t *Tong) Close() error {
+	// stop all cron jobs
+	t.stopCronJobs()
 	return t.Server.Close()
 }
 
 // Shutdown stops the server gracefully.
 // It internally calls `http.Server#Shutdown()`.
 func (t *Tong) Shutdown(ctx context.Context) error {
+	// stop all cron jobs
+	t.stopCronJobs()
 	return t.Server.Shutdown(ctx)
 }
 
@@ -136,6 +143,8 @@ func (t *Tong) StartServer(s *http.Server) error {
 	if err != nil {
 		return err
 	}
+	// start all cron jobs
+	t.startCronJobs()
 	return s.Serve(t.Listener)
 }
 
@@ -145,7 +154,7 @@ func (t *Tong) NewContext(r *http.Request, w http.ResponseWriter) *Context {
 		response:     NewResponse(w),
 		handler:      NotFoundHandler,
 		logger:       t.Logger,
-		requestCache: common.NewDefaultRAMCache(),
+		requestCache: common.NewDefaultLRUCache(),
 	}
 }
 
@@ -168,7 +177,7 @@ func (t *Tong) POST(p string, h HandlerFunc, m ...MiddlewareFunc) *RouteInfo {
 func (t *Tong) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *RouteInfo {
 	name := handlerName(handler)
 	t.router.Add(method, path, func(c *Context) error {
-		h := applyMiddleware(handler, middleware...)
+		h := prependMiddleware(handler, middleware...)
 		return h(c)
 	})
 	r := &RouteInfo{
@@ -178,4 +187,22 @@ func (t *Tong) Add(method, path string, handler HandlerFunc, middleware ...Middl
 	}
 	t.router.routes[method+path] = r
 	return r
+}
+
+func (t *Tong) AddCronJob(initialPeriod, stepPeriod, maxPeriod time.Duration, job common.Job) {
+	c := common.NewCron(initialPeriod, stepPeriod, maxPeriod)
+	c.Do(job)
+	t.cronList = append(t.cronList, c)
+}
+
+func (t *Tong) startCronJobs() {
+	for i := range t.cronList {
+		t.cronList[i].Start()
+	}
+}
+
+func (t *Tong) stopCronJobs() {
+	for i := range t.cronList {
+		t.cronList[i].Stop()
+	}
 }

@@ -167,9 +167,6 @@ func (h helloJob) Run() bool {
 t := tong.New() 
 t.AddCronJob(time.Second*3, time.Second*10, time.Minute, helloJob{}) 
 ```
-# A- Goroutine Pool 
-
-[todo] 
 
 # A- 日志 
 
